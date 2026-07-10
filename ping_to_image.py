@@ -159,35 +159,24 @@ def execute_ping(dev_ip):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         stdout = result.stdout
+        lines = stdout.splitlines()
         
         # Debug print
         print(f"\n--- DEBUG PING {dev_ip} ---")
-        for line in stdout.splitlines():
+        for line in lines:
             print(f"  {line}")
         print("-------------------------")
 
-        # Parsing jumlah reply (Windows vs Unix)
         if OS_TYPE == 'Windows':
-            # Contoh: "Packets: Sent = 5, Received = 5, Lost = 0 (0% loss)"
-            match = re.search(r'Received\s*=\s*(\d+)', stdout)
-            if match:
-                reply_count = int(match.group(1))
-            # RTT: "Minimum = 0ms, Maximum = 1ms, Average = 0ms"
-            match_avg = re.search(r'Average\s*=\s*(\d+)ms', stdout)
-            if match_avg:
-                avg_time = float(match_avg.group(1))
-        else:
-            # Unix style
-            rx_match = re.search(r'(\d+)\s+(?:packets?\s+)?received', stdout, re.IGNORECASE)
+            # Parsing khusus Windows: "Packets: Sent = 5, Received = 5, Lost = 0 (0% loss)"
+            rx_match = re.search(r'Received\s*=\s*(\d+)', stdout)
             if rx_match:
                 reply_count = int(rx_match.group(1))
-            rtt_avg_match = re.search(r'(?:round-trip|rtt)\s+min/avg/max/[a-z]+\s*=\s*[\d.]+/([\d.]+)/', stdout, re.IGNORECASE)
-            if rtt_avg_match:
-                avg_time = float(rtt_avg_match.group(1))
-
-        # Ambil statistik lengkap untuk ditampilkan
-        if OS_TYPE == 'Windows':
-            lines = stdout.splitlines()
+            # RTT Average: "Average = 0ms"
+            rtt_match = re.search(r'Average\s*=\s*(\d+)ms', stdout)
+            if rtt_match:
+                avg_time = float(rtt_match.group(1))
+            # Statistik
             stats_lines = []
             in_stats = False
             for line in lines:
@@ -199,16 +188,28 @@ def execute_ping(dev_ip):
                         break
             stats_text = "\n".join(stats_lines).strip() if stats_lines else f"--- {dev_ip} ping statistics ---\n{TOTAL_PING} packets transmitted, {reply_count} packets received"
         else:
+            # Kode asli untuk macOS/Linux (TIDAK DIUBAH)
+            rx_match = re.search(r'(\d+)\s+(?:packets?\s+)?received', stdout, re.IGNORECASE)
+            if rx_match:
+                reply_count = int(rx_match.group(1))
+
+            rtt_avg_match = re.search(r'(?:round-trip|rtt)\s+min/avg/max/[a-z]+\s*=\s*[\d.]+/([\d.]+)/', stdout, re.IGNORECASE)
+            if rtt_avg_match:
+                avg_time = float(rtt_avg_match.group(1))
+
             stats_lines = []
             in_stats = False
-            for line in stdout.splitlines():
+            for line in lines:
                 if "ping statistics" in line or "---" in line:
                     in_stats = True
                 if in_stats:
                     stats_lines.append(line)
                     if "packet loss" in line and "transmitted" in line:
                         break
-            stats_text = "\n".join(stats_lines).strip() if stats_lines else f"--- {dev_ip} ping statistics ---\n{TOTAL_PING} packets transmitted, {reply_count} packets received"
+            if stats_lines:
+                stats_text = "\n".join(stats_lines).strip()
+            else:
+                stats_text = f"--- {dev_ip} ping statistics ---\n{TOTAL_PING} packets transmitted, {reply_count} packets received"
 
     except subprocess.TimeoutExpired:
         reply_count = 0
@@ -291,6 +292,9 @@ def create_ping_image(dev_name, dev_ip, output_path):
 
     return is_success, reply_count, TOTAL_PING - reply_count
 
+# ==========================================
+# FUNGSI READ_DEVICE_LIST ASLI (TIDAK DIUBAH)
+# ==========================================
 def read_device_list(filepath):
     devices = []
     duplicates = []
