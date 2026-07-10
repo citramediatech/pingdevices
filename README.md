@@ -234,7 +234,7 @@ Dikembangkan oleh PT NexGen Solutions Asia
 
 Untuk pertanyaan atau dukungan:
 
-  Email   : support@nexgensolutions.co.id
-  Website : www.nexgensolutions.co.id
+  Email   : djamal@nexgensolutions.asia
+  Website : www.nexgensolutions.asia
 
 ===============================================================================
