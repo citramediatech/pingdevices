@@ -13,11 +13,11 @@
 	<key>CFBundleIconName</key>
 	<string>applet</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.apple.ScriptEditor.id.Ping-Devices</string>
+	<string>com.apple.ScriptEditor.id.Apple</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Ping Devices</string>
+	<string>Apple</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -70,7 +70,7 @@
 		<key>positionOfDivider</key>
 		<real>430</real>
 		<key>savedFrame</key>
-		<string>90 509 700 682 0 0 1920 1205 </string>
+		<string>20 514 700 682 0 0 1920 1205 </string>
 		<key>selectedTab</key>
 		<string>result</string>
 	</dict>

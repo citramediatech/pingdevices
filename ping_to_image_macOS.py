@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import subprocess
 import os
 import re
 import socket
@@ -9,7 +8,7 @@ from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
 
 # ==========================================
-# KONFIGURASI PATH RELATIF (AGAR PORTABLE)
+# KONFIGURASI PATH RELATIF
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IP_FILE = os.path.join(BASE_DIR, "iplist.txt")
@@ -17,35 +16,19 @@ SAVE_FOLDER = os.path.join(BASE_DIR, "results/")
 LOG_FILE = os.path.join(BASE_DIR, "logs.txt")
 
 FONT_PATHS = [
-    # macOS
-    "/System/Library/Fonts/Menlo.ttc",
-    "/System/Library/Fonts/Monaco.ttf",
-    "/System/Library/Fonts/SFMono-Regular.ttf",
-    "/System/Library/Fonts/Supplemental/Courier New.ttf",
-    # Windows
-    "C:\\Windows\\Fonts\\Consola.ttf",
-    "C:\\Windows\\Fonts\\Courier New.ttf",
-    "C:\\Windows\\Fonts\\Lucida Console.ttf",
-    # Linux (Debian/Ubuntu)
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf",
-    # Linux (RedHat/CentOS)
-    "/usr/share/fonts/liberation-mono/LiberationMono-Regular.ttf",
-    # Fallback umum
-    "/usr/share/fonts/truetype/droid/DroidSansMono.ttf",
+    "/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/Monaco.ttf",
+    "/System/Library/Fonts/SFMono-Regular.ttf", "/System/Library/Fonts/Supplemental/Courier New.ttf",
+    "C:\\Windows\\Fonts\\Consola.ttf", "C:\\Windows\\Fonts\\Courier New.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 ]
 
 OS_TYPE = platform.system()
-
-# ==========================================
-# KONFIGURASI WARNA & UKURAN
-# ==========================================
 BG_COLOR = (30, 30, 30)
-TEXT_COLOR = (255, 255, 255)    # PUTIH (untuk Reply)
-TIMEOUT_COLOR = (255, 80, 80)   # MERAH (untuk Timeout)
+TEXT_COLOR = (255, 255, 255)
+TIMEOUT_COLOR = (255, 80, 80)
 TITLE_BG_COLOR = (43, 43, 43)
 TITLE_TEXT_COLOR = (200, 200, 200)
+PROMPT_COLOR = (120, 220, 120)
 
 FONT_SIZE = 18
 TITLE_FONT_SIZE = 13
@@ -83,13 +66,13 @@ current_hostname = socket.gethostname().split('.')[0]
 
 if OS_TYPE == 'Darwin':
     LOCAL_PROMPT = f"{current_user}@{current_hostname} ~ %"
-    TITLE_TEXT = f"{current_user}@{current_hostname} — -zsh — 80x24"
+    TITLE_TEXT = f"{current_user}@{current_hostname} — zsh — 80x24"
 elif OS_TYPE == 'Windows':
     LOCAL_PROMPT = f"PS C:\\Users\\{current_user}>"
-    TITLE_TEXT = f"Administrator: Windows PowerShell"
+    TITLE_TEXT = "Administrator: Windows PowerShell"
 else:
     LOCAL_PROMPT = f"{current_user}@{current_hostname}:~$"
-    TITLE_TEXT = f"{current_user}@{current_hostname}:~ — -bash — 80x24"
+    TITLE_TEXT = f"{current_user}@{current_hostname}: ~ — bash — 80x24"
 
 def get_text_size(draw, text, fnt):
     try:
@@ -100,8 +83,7 @@ def get_text_size(draw, text, fnt):
 
 def safe_filename(name):
     if not name: return "Unknown"
-    name = re.sub(r'[\\/*?:"<>|]', '_', name)
-    return name.strip() if name.strip() else "Unknown"
+    return re.sub(r'[\\/*?:"<>|]', '_', name).strip() or "Unknown"
 
 def wrap_text(text, draw, fnt, max_width):
     lines = []
@@ -125,104 +107,68 @@ def wrap_text(text, draw, fnt, max_width):
 def draw_macos_title_bar(draw, width):
     draw.rectangle([(0, 0), (width, TITLE_HEIGHT)], fill=TITLE_BG_COLOR)
     btn_y = (TITLE_HEIGHT - 14) // 2
-    draw.ellipse([(10, btn_y), (24, btn_y + 14)], fill=COLOR_CLOSE)
-    draw.ellipse([(32, btn_y), (46, btn_y + 14)], fill=COLOR_MINIMIZE)
-    draw.ellipse([(54, btn_y), (68, btn_y + 14)], fill=COLOR_MAXIMIZE)
+    draw.ellipse([(12, btn_y), (26, btn_y + 14)], fill=COLOR_CLOSE)
+    draw.ellipse([(34, btn_y), (48, btn_y + 14)], fill=COLOR_MINIMIZE)
+    draw.ellipse([(56, btn_y), (70, btn_y + 14)], fill=COLOR_MAXIMIZE)
     bbox = draw.textbbox((0, 0), TITLE_TEXT, font=title_font)
     text_x = (width - (bbox[2] - bbox[0])) // 2
-    draw.text((text_x, (TITLE_HEIGHT - TITLE_FONT_SIZE) // 2 - 1), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
+    draw.text((text_x, (TITLE_HEIGHT - (bbox[3] - bbox[1])) // 2), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
 
 def draw_windows_title_bar(draw, width):
     draw.rectangle([(0, 0), (width, TITLE_HEIGHT)], fill=TITLE_BG_COLOR)
-    draw.rectangle([(width - 150, 0), (width - 100, TITLE_HEIGHT)], fill=TITLE_BG_COLOR)
-    draw.line([(width - 140, TITLE_HEIGHT // 2), (width - 110, TITLE_HEIGHT // 2)], fill="white", width=2)
-    draw.rectangle([(width - 100, 0), (width - 50, TITLE_HEIGHT)], fill=TITLE_BG_COLOR)
-    draw.rectangle([(width - 90, 8), (width - 60, TITLE_HEIGHT - 8)], outline="white", width=2)
-    draw.rectangle([(width - 50, 0), (width, TITLE_HEIGHT)], fill=COLOR_CLOSE)
-    draw.text((width - 38, 8), "X", fill="white", font=title_font)
-    draw.text((15, (TITLE_HEIGHT - TITLE_FONT_SIZE) // 2 - 1), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
+    draw.text((15, (TITLE_HEIGHT - TITLE_FONT_SIZE) // 2), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
 
 def draw_linux_title_bar(draw, width):
     draw.rectangle([(0, 0), (width, TITLE_HEIGHT)], fill=TITLE_BG_COLOR)
-    btn_y = (TITLE_HEIGHT - 18) // 2
-    draw.rectangle([(10, btn_y), (28, btn_y + 18)], fill=COLOR_CLOSE)
-    draw.rectangle([(34, btn_y), (52, btn_y + 18)], fill=COLOR_MINIMIZE)
-    draw.rectangle([(58, btn_y), (76, btn_y + 18)], fill=COLOR_MAXIMIZE)
+    btn_y = (TITLE_HEIGHT - 16) // 2
+    btn_size = 16
+    gap = 6
+    draw.rectangle([(10, btn_y), (10 + btn_size, btn_y + btn_size)], fill=COLOR_CLOSE)
+    draw.rectangle([(10 + btn_size + gap, btn_y), (10 + btn_size * 2 + gap, btn_y + btn_size)], fill=COLOR_MINIMIZE)
+    draw.rectangle([(10 + (btn_size + gap) * 2, btn_y), (10 + btn_size * 3 + gap * 2, btn_y + btn_size)], fill=COLOR_MAXIMIZE)
     bbox = draw.textbbox((0, 0), TITLE_TEXT, font=title_font)
     text_x = (width - (bbox[2] - bbox[0])) // 2
-    draw.text((text_x, (TITLE_HEIGHT - TITLE_FONT_SIZE) // 2 - 1), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
+    draw.text((text_x, (TITLE_HEIGHT - (bbox[3] - bbox[1])) // 2), TITLE_TEXT, fill=TITLE_TEXT_COLOR, font=title_font)
+
+def draw_title_bar(draw, width):
+    if OS_TYPE == 'Darwin': draw_macos_title_bar(draw, width)
+    elif OS_TYPE == 'Windows': draw_windows_title_bar(draw, width)
+    else: draw_linux_title_bar(draw, width)
 
 # ==========================================
-# EKSEKUSI PING (DIPERBAIKI UNTUK CROSS-PLATFORM)
+# EKSEKUSI PING (MENGGUNAKAN LIBRARY ping3)
 # ==========================================
 def execute_ping(dev_ip):
-    """
-    Returns:
-        results: list of dict {'success': bool, 'time_ms': float or None}
-        stats_text: string ringkasan statistik
-    """
     results = []
-    stats = {'sent': TOTAL_PING, 'received': 0, 'loss_percent': 100.0, 'avg_ms': 0.0}
-
-    if OS_TYPE == 'Windows':
-        cmd = ["ping", "-n", str(TOTAL_PING), "-w", "2000", dev_ip]
-    else:
-        cmd = ["ping", "-c", str(TOTAL_PING), "-W", "2", dev_ip]
-
+    
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        stdout = proc.stdout
-        lines = stdout.splitlines()
-    except subprocess.TimeoutExpired:
-        # Semua paket timeout
+        from ping3 import ping
+    except ImportError:
         for _ in range(TOTAL_PING):
             results.append({'success': False, 'time_ms': None})
-        stats_text = f"--- {dev_ip} ping statistics ---\n{TOTAL_PING} packets transmitted, 0 received, 100% packet loss"
+        stats_text = "Error: Library 'ping3' belum terinstall. Jalankan 'pip3 install ping3'"
         return results, stats_text
 
-    # --- Parsing untuk Windows ---
-    if OS_TYPE == 'Windows':
-        for line in lines:
-            # Reply from 192.168.1.1: bytes=32 time=1ms TTL=64
-            m = re.search(r'Reply from .+? time[=<](\d+(?:\.\d+)?)\s*ms', line, re.IGNORECASE)
-            if m:
-                results.append({'success': True, 'time_ms': float(m.group(1))})
-                continue
-            # Request timed out.
-            if 'timed out' in line.lower() or 'unreachable' in line.lower():
-                results.append({'success': False, 'time_ms': None})
-                continue
-        # Jika jumlah reply < TOTAL_PING, tambahkan sisanya sebagai timeout
-        while len(results) < TOTAL_PING:
-            results.append({'success': False, 'time_ms': None})
-
-    # --- Parsing untuk UNIX (Linux, macOS, BSD, dll) ---
-    else:
-        for line in lines:
-            # 64 bytes from 192.168.1.1: icmp_seq=1 ttl=64 time=0.123 ms
-            m = re.search(r'time[=<](\d+(?:\.\d+)?)\s*ms', line, re.IGNORECASE)
-            if m:
-                results.append({'success': True, 'time_ms': float(m.group(1))})
-                continue
-            # Request timeout for icmp_seq ...
-            if 'timeout' in line.lower() or 'unreachable' in line.lower():
-                results.append({'success': False, 'time_ms': None})
-                continue
-        # Tambahkan sisanya
-        while len(results) < TOTAL_PING:
+    # Lakukan ping 5 kali
+    for _ in range(TOTAL_PING):
+        # timeout 2 detik, unit milidetik
+        rtt = ping(dev_ip, timeout=2, unit='ms')
+        
+        if rtt is not None and rtt > 0:
+            results.append({'success': True, 'time_ms': round(rtt, 3)})
+        else:
             results.append({'success': False, 'time_ms': None})
 
     # --- Hitung statistik ---
-    stats['received'] = sum(1 for r in results if r['success'])
-    stats['loss_percent'] = ((TOTAL_PING - stats['received']) / TOTAL_PING) * 100
-    times = [r['time_ms'] for r in results if r['success']]
-    if times:
-        stats['avg_ms'] = sum(times) / len(times)
+    stats_received = sum(1 for r in results if r['success'])
+    stats_loss_percent = ((TOTAL_PING - stats_received) / TOTAL_PING) * 100
+    times = [r['time_ms'] for r in results if r['success'] and r['time_ms'] is not None]
 
     stats_text = f"--- {dev_ip} ping statistics ---\n"
-    stats_text += f"{TOTAL_PING} packets transmitted, {stats['received']} received, {stats['loss_percent']:.0f}% packet loss\n"
+    stats_text += f"{TOTAL_PING} packets transmitted, {stats_received} received, {stats_loss_percent:.0f}% packet loss"
     if times:
-        stats_text += f"round-trip min/avg/max = {min(times):.3f}/{stats['avg_ms']:.3f}/{max(times):.3f} ms"
+        avg_time = sum(times) / len(times)
+        stats_text += f"\nround-trip min/avg/max = {min(times):.3f}/{avg_time:.3f}/{max(times):.3f} ms"
 
     return results, stats_text
 
@@ -232,7 +178,6 @@ def execute_ping(dev_ip):
 def create_ping_image(dev_name, dev_ip, output_path):
     now = datetime.now()
     time_str = now.strftime("%a %b %d %H:%M:%S %Y")
-
     results, stats_text = execute_ping(dev_ip)
 
     output_lines = []
@@ -255,22 +200,16 @@ def create_ping_image(dev_name, dev_ip, output_path):
         for stat_line in stats_text.split('\n'):
             output_lines.append((stat_line, TEXT_COLOR))
 
-    # Hitung total sukses untuk status akhir
     success_count = sum(1 for r in results if r['success'])
-    is_success = success_count > 0
-
     terminal_lines = [
         (f"Last login: {time_str} on ttys000", TEXT_COLOR),
-        (f"{LOCAL_PROMPT} ping {dev_ip}", TEXT_COLOR),
-    ]
-    terminal_lines.extend(output_lines)
-    terminal_lines.append((f"{LOCAL_PROMPT}", TEXT_COLOR))
+        (f"{LOCAL_PROMPT} ping {dev_ip}", PROMPT_COLOR),
+    ] + output_lines + [(f"{LOCAL_PROMPT} ", PROMPT_COLOR)]
 
     temp_img = Image.new("RGB", (1, 1), BG_COLOR)
     temp_draw = ImageDraw.Draw(temp_img)
     all_rendered = []
     max_width = 0
-
     for text, color in terminal_lines:
         wrapped = wrap_text(text, temp_draw, font, 1200)
         for wl in wrapped:
@@ -280,16 +219,9 @@ def create_ping_image(dev_name, dev_ip, output_path):
 
     img_width = max(max_width + (PADDING * 2), 450)
     img_height = (len(all_rendered) * LINE_HEIGHT) + (PADDING * 2) + TITLE_HEIGHT
-
     img = Image.new("RGB", (img_width, img_height), BG_COLOR)
     draw = ImageDraw.Draw(img)
-
-    if OS_TYPE == 'Darwin':
-        draw_macos_title_bar(draw, img_width)
-    elif OS_TYPE == 'Windows':
-        draw_windows_title_bar(draw, img_width)
-    else:
-        draw_linux_title_bar(draw, img_width)
+    draw_title_bar(draw, img_width)
 
     y = PADDING + TITLE_HEIGHT
     for text, color in all_rendered:
@@ -297,11 +229,12 @@ def create_ping_image(dev_name, dev_ip, output_path):
         y += LINE_HEIGHT
 
     try:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         img.save(output_path, "JPEG", quality=95, optimize=True)
     except Exception as e:
-        print(f"Warning: Gagal simpan - {e}")
+        print(f"\n    [WARNING] Gagal simpan: {e}")
 
-    return is_success, success_count, TOTAL_PING - success_count
+    return success_count > 0, success_count, TOTAL_PING - success_count
 
 # ==========================================
 # MEMBACA DAFTAR DEVICE
@@ -331,7 +264,6 @@ def read_device_list(filepath):
                     current_category = "AP"
                 elif clean_line == "SWITCH":
                     current_category = "SWITCH"
-
                 gedung_text = line.lstrip('#').strip()
                 if gedung_text and gedung_text.upper() not in ["CCTV", "AP", "SWITCH"] and len(gedung_text) > 2:
                     current_gedung = gedung_text
@@ -340,51 +272,28 @@ def read_device_list(filepath):
             dev_name = dev_ip = None
             if "|" in line:
                 parts = line.split("|", 1)
-                if len(parts) == 2:
-                    dev_name, dev_ip = parts[0].strip(), parts[1].strip()
+                dev_name, dev_ip = parts[0].strip(), parts[1].strip()
             elif "," in line:
                 parts = line.split(",", 1)
-                if len(parts) == 2:
-                    dev_name, dev_ip = parts[0].strip(), parts[1].strip()
+                dev_name, dev_ip = parts[0].strip(), parts[1].strip()
             elif "\t" in line:
                 parts = line.split("\t", 1)
-                if len(parts) == 2:
-                    dev_name, dev_ip = parts[0].strip(), parts[1].strip()
+                dev_name, dev_ip = parts[0].strip(), parts[1].strip()
 
             if dev_name and dev_ip and re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', dev_ip):
                 if dev_ip in seen_ips:
-                    duplicates.append({
-                        'gedung': current_gedung,
-                        'name': dev_name,
-                        'ip': dev_ip
-                    })
+                    duplicates.append({'gedung': current_gedung, 'name': dev_name, 'ip': dev_ip})
                 else:
                     seen_ips.add(dev_ip)
-
-                devices.append({
-                    'gedung': current_gedung,
-                    'name': dev_name,
-                    'ip': dev_ip,
-                    'category': current_category
-                })
+                devices.append({'gedung': current_gedung, 'name': dev_name, 'ip': dev_ip, 'category': current_category})
                 pending_name = None
             elif pending_name is not None:
                 if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', line):
                     if line in seen_ips:
-                        duplicates.append({
-                            'gedung': current_gedung,
-                            'name': pending_name,
-                            'ip': line
-                        })
+                        duplicates.append({'gedung': current_gedung, 'name': pending_name, 'ip': line})
                     else:
                         seen_ips.add(line)
-
-                    devices.append({
-                        'gedung': current_gedung,
-                        'name': pending_name,
-                        'ip': line,
-                        'category': current_category
-                    })
+                    devices.append({'gedung': current_gedung, 'name': pending_name, 'ip': line, 'category': current_category})
                     pending_name = None
                 else:
                     pending_name = line
@@ -406,41 +315,29 @@ def main():
         return
 
     if duplicates:
-        try:
-            grouped = defaultdict(list)
-            for dup in duplicates:
-                grouped[dup['ip']].append(dup)
-
-            real_duplicates = {ip: items for ip, items in grouped.items() if len(items) > 1}
-
-            if real_duplicates:
-                with open(LOG_FILE, 'w', encoding='utf-8') as f:
-                    f.write("=" * 60 + "\n")
-                    f.write(f"DUPLIKAT IP DITEMUKAN PADA: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write("=" * 60 + "\n\n")
-
-                    for ip, items in real_duplicates.items():
-                        gedung1 = items[0]['gedung'].replace("Gedung ", "").strip()
-                        line = f"{ip} Digunkan Device {items[0]['name']} (Gedung {gedung1})"
-
-                        for item in items[1:]:
-                            gedung_n = item['gedung'].replace("Gedung ", "").strip()
-                            line += f", Duplicate Device {item['name']} (Gedung {gedung_n})"
-
-                        f.write(line + "\n")
-
-                    f.write("\n" + "=" * 60 + "\n")
-
-                print(f"\033[93m[WARNING]\033[0m Ditemukan {len(real_duplicates)} IP duplikat. Lihat log di {LOG_FILE}")
-            else:
-                if os.path.exists(LOG_FILE):
-                    os.remove(LOG_FILE)
-                print("\033[92m[INFO]\033[0m Tidak ditemukan duplikat IP.")
-        except Exception as e:
-            print(f"\033[91m[ERROR]\033[0m Gagal menulis log duplikat: {e}")
+        grouped = defaultdict(list)
+        for dup in duplicates:
+            grouped[dup['ip']].append(dup)
+        real_duplicates = {ip: items for ip, items in grouped.items() if len(items) > 1}
+        if real_duplicates:
+            with open(LOG_FILE, 'w', encoding='utf-8') as f:
+                f.write("=" * 60 + "\n")
+                f.write(f"DUPLIKAT IP DITEMUKAN PADA: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 60 + "\n\n")
+                for ip, items in real_duplicates.items():
+                    gedung1 = items[0]['gedung'].replace("Gedung ", "").strip()
+                    line = f"{ip} Digunkan Device {items[0]['name']} (Gedung {gedung1})"
+                    for item in items[1:]:
+                        gedung_n = item['gedung'].replace("Gedung ", "").strip()
+                        line += f", Duplicate Device {item['name']} (Gedung {gedung_n})"
+                    f.write(line + "\n")
+                f.write("\n" + "=" * 60 + "\n")
+            print(f"\033[93m[WARNING]\033[0m Ditemukan {len(real_duplicates)} IP duplikat. Lihat log di {LOG_FILE}")
+        else:
+            if os.path.exists(LOG_FILE): os.remove(LOG_FILE)
+            print("\033[92m[INFO]\033[0m Tidak ditemukan duplikat IP.")
     else:
-        if os.path.exists(LOG_FILE):
-            os.remove(LOG_FILE)
+        if os.path.exists(LOG_FILE): os.remove(LOG_FILE)
         print("\033[92m[INFO]\033[0m Tidak ditemukan duplikat IP.")
 
     success_count = 0
@@ -457,10 +354,8 @@ def main():
         name = device['name']
         ip = device['ip']
         cat = device['category']
-
         folder_path = os.path.join(SAVE_FOLDER, safe_filename(cat), safe_filename(gedung))
         os.makedirs(folder_path, exist_ok=True)
-
         save_path = os.path.join(folder_path, f"{safe_filename(name).replace(' ', '_')}.jpg")
 
         print(f"[{idx:3d}/{total}] ", end="", flush=True)
