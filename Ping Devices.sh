@@ -11,7 +11,7 @@ CYAN='\033[1;36m'
 NC='\033[0m' # No Color
 
 echo -e "${CYAN}================================================================${NC}"
-echo -e "${CYAN}           PING MONITOR v1.0 - PT NexGen Solutions Asia${NC}"
+echo -e "${CYAN}           PING MONITOR v1.1 - PT NexGen Solutions Asia${NC}"
 echo -e "${CYAN}================================================================${NC}"
 echo ""
 
@@ -37,12 +37,17 @@ if ! command -v $PYTHON_CMD &> /dev/null; then
 fi
 
 # ==========================================
-# Cek keberadaan script Python
+# Cek keberadaan script Python (prioritas: macOS version)
 # ==========================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON_FILE="$SCRIPT_DIR/ping_to_image.py"
-if [ ! -f "$PYTHON_FILE" ]; then
-    echo -e "${RED}[ERROR]${NC} File ping_to_image.py tidak ditemukan di $SCRIPT_DIR"
+
+if [ -f "$SCRIPT_DIR/ping_to_image_macOS.py" ]; then
+    PYTHON_FILE="$SCRIPT_DIR/ping_to_image_macOS.py"
+elif [ -f "$SCRIPT_DIR/ping_to_image.py" ]; then
+    PYTHON_FILE="$SCRIPT_DIR/ping_to_image.py"
+else
+    echo -e "${RED}[ERROR]${NC} Tidak ditemukan ping_to_image_macOS.py atau ping_to_image.py"
+    echo "        Pastikan file script Python ada di $SCRIPT_DIR"
     read -p "Tekan Enter untuk keluar..."
     exit 1
 fi
@@ -68,31 +73,53 @@ fi
 echo ""
 
 # ==========================================
-# Jalankan script Python
+# JALANKAN PYTHON
 # ==========================================
-echo -e "${YELLOW}[INFO]${NC} Menjalankan ping_to_image.py..."
-$PYTHON_CMD "$PYTHON_FILE"
-EXIT_CODE=$?
+echo -e "${YELLOW}[INFO]${NC} Menjalankan $PYTHON_FILE..."
+
+TMP_OUTPUT=$(mktemp)
+$PYTHON_CMD "$PYTHON_FILE" 2>&1 | tee "$TMP_OUTPUT"
+EXIT_CODE=${PIPESTATUS[0]}
+
+SAVE_FOLDER=$(grep -o "Folder hasil: .*" "$TMP_OUTPUT" | tail -1 | sed 's/Folder hasil: //')
+rm "$TMP_OUTPUT"
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo ""
     echo -e "${RED}[ERROR]${NC} Script Python berhenti dengan kode error $EXIT_CODE."
-    echo "        Periksa apakah iplist.txt ada dan formatnya benar."
+    echo "        Periksa apakah file IP yang dipilih valid dan formatnya benar."
     read -p "Tekan Enter untuk keluar..."
     exit $EXIT_CODE
+fi
+
+if [ -z "$SAVE_FOLDER" ]; then
+    SAVE_FOLDER="$SCRIPT_DIR/results"
+    echo -e "${YELLOW}[INFO]${NC} Folder hasil tidak terdeteksi, menggunakan default: $SAVE_FOLDER"
 fi
 
 echo ""
 echo -e "${GREEN}================================================================${NC}"
 echo -e "${GREEN}   PROSES SELESAI!${NC}"
 echo -e "${GREEN}================================================================${NC}"
+echo -e "   Folder hasil: ${CYAN}$SAVE_FOLDER${NC}"
 echo ""
-read -p "Tekan [ENTER] untuk membuka folder hasil... " enterKey
 
-# Buka folder hasil
-if [ -d "$SCRIPT_DIR/results" ]; then
-    $OPEN_CMD "$SCRIPT_DIR/results"
+# ==========================================
+# Tanyakan untuk membuka folder
+# ==========================================
+read -p "Tekan [ENTER] untuk membuka folder hasil... " openKey
+
+if [ -d "$SAVE_FOLDER" ]; then
+    $OPEN_CMD "$SAVE_FOLDER"
 else
-    echo -e "${YELLOW}[INFO]${NC} Folder results belum dibuat."
-    read -p "Tekan Enter untuk keluar..."
+    echo -e "${YELLOW}[INFO]${NC} Folder $SAVE_FOLDER belum dibuat (mungkin belum ada gambar)."
 fi
+
+echo ""
+read -p "Tekan [ENTER] untuk menutup terminal... " closeKey
+
+# ==========================================
+# Tutup jendela Terminal yang sedang aktif
+# ==========================================
+osascript -e 'tell application "Terminal" to close front window' 2>/dev/null
+exit 0

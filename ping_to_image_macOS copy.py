@@ -2,19 +2,17 @@
 import os
 import re
 import socket
-import json
 import platform
 from datetime import datetime
 from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
 
 # ==========================================
-# KONFIGURASI PATH
+# KONFIGURASI PATH RELATIF
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_IP_FILE = os.path.join(BASE_DIR, "iplist.txt")
+IP_FILE = os.path.join(BASE_DIR, "iplist.txt")
 LOG_FILE = os.path.join(BASE_DIR, "logs.txt")
-CONFIG_FILE = os.path.join(BASE_DIR, "ping_monitor_config.json")
 
 FONT_PATHS = [
     "/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/Monaco.ttf",
@@ -234,7 +232,7 @@ def create_ping_image(dev_name, dev_ip, output_path):
     return success_count > 0, success_count, TOTAL_PING - success_count
 
 # ==========================================
-# MEMBACA DAFTAR DEVICE (DARI FILE YANG DIPILIH)
+# MEMBACA DAFTAR DEVICE
 # ==========================================
 def read_device_list(filepath):
     devices = []
@@ -301,143 +299,54 @@ def read_device_list(filepath):
     return devices, duplicates
 
 # ==========================================
-# FUNGSI UNTUK MEMILIH FILE IP LIST (DENGAN FINDER ATAU MANUAL)
+# FUNGSI UNTUK MEMILIH LOKASI PENYIMPANAN (DENGAN FINDER)
 # ==========================================
-def get_ip_file():
-    print("\n=== TAHAP 1: PILIH FILE IP LIST ===")
-    print("  1. Default (iplist.txt di folder yang sama)")
-    print("  2. Custom (pilih file lain)")
+def get_save_folder():
+    print("\n[PILIHAN LOKASI PENYIMPANAN]")
+    print("  1. Default (folder saat ini: ./results/)")
+    print("  2. Custom (buka Finder untuk memilih folder)")
     choice = input("  Masukkan pilihan (1/2): ").strip()
 
     if choice == "2":
         try:
             import tkinter as tk
             from tkinter import filedialog
+            # Buat jendela Tk tersembunyi
             root = tk.Tk()
             root.withdraw()
-            file_path = filedialog.askopenfilename(
-                title="Pilih file daftar IP (text file)",
-                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
-            )
+            # Buka dialog pilih folder
+            custom_path = filedialog.askdirectory(title="Pilih folder untuk menyimpan hasil ping")
             root.destroy()
-            if file_path:
-                print(f"  File dipilih: {file_path}")
-                return file_path
-            else:
-                print("  Tidak ada file dipilih, menggunakan default.")
-                return DEFAULT_IP_FILE
-        except ImportError:
-            print("  [FALLBACK] Tkinter tidak tersedia. Silakan masukkan path secara manual.")
-            custom_path = input("  Masukkan path lengkap ke file .txt: ").strip()
-            if not custom_path:
-                print("  Path kosong, menggunakan default.")
-                return DEFAULT_IP_FILE
-            if not os.path.isabs(custom_path):
-                custom_path = os.path.join(BASE_DIR, custom_path)
-            print(f"  File dipilih: {custom_path}")
-            return custom_path
-    else:
-        print(f"  Menggunakan default: {DEFAULT_IP_FILE}")
-        return DEFAULT_IP_FILE
-
-# ==========================================
-# FUNGSI UNTUK MEMILIH LOKASI PENYIMPANAN (DENGAN INGATAN)
-# ==========================================
-def get_save_folder():
-    print("\n=== TAHAP 2: PILIH FOLDER PENYIMPANAN ===")
-
-    # Cek apakah ada konfigurasi folder sebelumnya
-    config = {}
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-        except:
-            pass
-
-    last_folder = config.get('last_save_folder', '')
-
-    # Tampilkan opsi
-    print("  1. Default (folder ./results/ di dalam folder ini)")
-    if last_folder and os.path.isdir(last_folder):
-        print(f"  2. Custom (pilih folder lain)")
-        print(f"  3. Gunakan folder sebelumnya: {last_folder}")
-        options = "1/2/3"
-    else:
-        print("  2. Custom (pilih folder lain)")
-        options = "1/2"
-
-    choice = input(f"  Masukkan pilihan ({options}): ").strip()
-
-    # Opsi 3: gunakan folder sebelumnya
-    if last_folder and os.path.isdir(last_folder) and choice == "3":
-        print(f"  Menggunakan folder sebelumnya: {last_folder}")
-        return last_folder
-
-    # Opsi 2: custom via Finder atau manual
-    if choice == "2":
-        try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            folder_path = filedialog.askdirectory(title="Pilih folder untuk menyimpan hasil ping")
-            root.destroy()
-            if folder_path:
-                # Simpan ke konfigurasi
-                config['last_save_folder'] = folder_path
-                try:
-                    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                        json.dump(config, f, indent=2)
-                except:
-                    pass
-                print(f"  Folder dipilih: {folder_path}")
-                return folder_path
+            if custom_path:
+                return custom_path
             else:
                 print("  Tidak ada folder dipilih, menggunakan default.")
                 return os.path.join(BASE_DIR, "results/")
         except ImportError:
-            print("  [FALLBACK] Tkinter tidak tersedia. Silakan masukkan path secara manual.")
+            print("  Tkinter tidak tersedia. Silakan masukkan path secara manual.")
             custom_path = input("  Masukkan path absolut atau relatif untuk folder hasil: ").strip()
             if not custom_path:
                 print("  Path kosong, menggunakan default.")
                 return os.path.join(BASE_DIR, "results/")
             if not os.path.isabs(custom_path):
                 custom_path = os.path.join(BASE_DIR, custom_path)
-            # Simpan ke konfigurasi
-            config['last_save_folder'] = custom_path
-            try:
-                with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(config, f, indent=2)
-            except:
-                pass
-            print(f"  Folder dipilih: {custom_path}")
             return custom_path
-
-    # Default: results/
-    default = os.path.join(BASE_DIR, "results/")
-    print(f"  Menggunakan default: {default}")
-    return default
+    else:
+        return os.path.join(BASE_DIR, "results/")
 
 # ==========================================
 # MAIN
 # ==========================================
 def main():
-    # --- TAHAP 1: PILIH FILE IP ---
-    ip_file = get_ip_file()
-    print()
-    
-    # Baca file
-    devices, duplicates = read_device_list(ip_file)
+    devices, duplicates = read_device_list(IP_FILE)
     if not devices:
-        print("\033[91m[ERROR]\033[0m Tidak ada device yang ditemukan di file tersebut. Periksa format file!")
+        print("Tidak ada device ditemukan. Cek format file!")
         return
 
-    # --- TAHAP 2: PILIH LOKASI PENYIMPANAN ---
+    # Pilih lokasi penyimpanan
     save_folder = get_save_folder()
     os.makedirs(save_folder, exist_ok=True)
 
-    # --- LOG DUPLIKAT ---
     if duplicates:
         grouped = defaultdict(list)
         for dup in duplicates:
@@ -464,16 +373,12 @@ def main():
         if os.path.exists(LOG_FILE): os.remove(LOG_FILE)
         print("\033[92m[INFO]\033[0m Tidak ditemukan duplikat IP.")
 
-    # --- PROSES PING ---
     success_count = 0
     partial_count = 0
     fail_count = 0
     total = len(devices)
 
-    # --- STRUKTUR FOLDER DENGAN TANGGAL ---
-    today_str = datetime.now().strftime("%Y-%m-%d")
-
-    print(f"\nDevice dipakai : {LOCAL_PROMPT}")
+    print(f"Device dipakai : {LOCAL_PROMPT}")
     print(f"Total target  : {total} device")
     print(f"Folder hasil   : {save_folder}")
     print("=" * 65)
@@ -483,8 +388,7 @@ def main():
         name = device['name']
         ip = device['ip']
         cat = device['category']
-
-        folder_path = os.path.join(save_folder, today_str, safe_filename(cat), safe_filename(gedung))
+        folder_path = os.path.join(save_folder, safe_filename(cat), safe_filename(gedung))
         os.makedirs(folder_path, exist_ok=True)
         save_path = os.path.join(folder_path, f"{safe_filename(name).replace(' ', '_')}.jpg")
 
@@ -512,7 +416,7 @@ def main():
     print(f"  \033[92m● Online  : {success_count}\033[0m ( 5/5 Reply )")
     print(f"  \033[93m● Partial : {partial_count}\033[0m ( Loss di tengah )")
     print(f"  \033[91m● Offline : {fail_count}\033[0m ( 0/5 Reply )")
-    print(f"\nFolder hasil: {save_folder}/{today_str}/")
+    print(f"\nFolder hasil: {save_folder}")
 
 if __name__ == "__main__":
     main()
