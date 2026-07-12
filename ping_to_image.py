@@ -5,6 +5,7 @@ import socket
 import json
 import platform
 import subprocess
+import time  # <--- PERBAIKAN: Impor modul time untuk jeda
 from datetime import datetime
 from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
@@ -47,9 +48,6 @@ elif OS_TYPE == 'Windows':
 else:
     COLOR_CLOSE, COLOR_MINIMIZE, COLOR_MAXIMIZE = (255, 80, 80), (255, 200, 80), (80, 200, 80)
 
-# ==========================================
-# PERBAIKAN LOAD FONT (PASTI BERHASIL DI WINDOWS)
-# ==========================================
 def load_font(size):
     for path in FONT_PATHS:
         if os.path.exists(path):
@@ -65,9 +63,6 @@ def load_font(size):
 font = load_font(FONT_SIZE)
 title_font = load_font(TITLE_FONT_SIZE)
 
-# ==========================================
-# FUNGSI UTILITAS
-# ==========================================
 def get_current_user():
     try:
         return os.getlogin()
@@ -82,7 +77,7 @@ if OS_TYPE == 'Darwin':
     TITLE_TEXT = f"{current_user}@{current_hostname} — zsh — 80x24"
 elif OS_TYPE == 'Windows':
     LOCAL_PROMPT = f"C:\\Users\\{current_user}>"
-    TITLE_TEXT = "Administrator: C:\\Windows\\system32\\cmd.exe"
+    TITLE_TEXT = f"{current_user}: C:\\Windows\\system32\\cmd.exe"
 else:
     LOCAL_PROMPT = f"{current_user}@{current_hostname}:~$"
     TITLE_TEXT = f"{current_user}@{current_hostname}: ~ — bash — 80x24"
@@ -185,6 +180,9 @@ def execute_ping(dev_ip):
             results.append({'success': True, 'time_ms': round(rtt, 3)})
         else:
             results.append({'success': False, 'time_ms': None})
+        
+        # --- PERBAIKAN: Tambahkan jeda 0.5 detik antar paket agar waktu tidak sama semua ---
+        time.sleep(0.5)  # <--- JEDA 0.5 DETIK
 
     stats_received = sum(1 for r in results if r['success'])
     stats_loss_percent = ((TOTAL_PING - stats_received) / TOTAL_PING) * 100
@@ -211,8 +209,14 @@ def create_ping_image(dev_name, dev_ip, output_path):
         terminal_lines.append(("Microsoft Windows [Version 10.0.26200.7840]", TEXT_COLOR))
         terminal_lines.append(("(c) Microsoft Corporation. All rights reserved.", TEXT_COLOR))
         terminal_lines.append(("", TEXT_COLOR))
+        
+        # Perintah ping
         terminal_lines.append((f"{LOCAL_PROMPT}ping {dev_ip}", PROMPT_COLOR))
+        
+        # Date Check
+        terminal_lines.append((f"Date Check: {now.strftime('%d %B %Y %H:%M:%S')}", TEXT_COLOR))
         terminal_lines.append(("", TEXT_COLOR))
+        
         terminal_lines.append((f"Pinging {dev_ip} with 32 bytes of data:", TEXT_COLOR))
 
         for res in results:
@@ -558,6 +562,7 @@ def main():
 
         folder_path = os.path.join(save_folder, today_str, safe_filename(cat), safe_filename(gedung))
         os.makedirs(folder_path, exist_ok=True)
+
         save_path = os.path.join(folder_path, f"{safe_filename(name).replace(' ', '_')}.jpg")
 
         print(f"[{idx:3d}/{total}] ", end="", flush=True)
